@@ -1,6 +1,13 @@
 #!/bin/bash
 #
-# teste de ytmp mais rapido.
+# DESCRIPTION   Script para executar videos do youtube no terminal. Utiliza o 
+#               Youtube-DL + Mplayer para executar os videos. Apresenta suporte
+#               para reproducao de videos comuns, playlists. Reproduzindo tanto
+#               video ou somente o audio.
+#
+# AUTHOR        Vinicius D Sartori Rimoldi.
+#
+# LICENSE       GpL3.
 #
 # CREATED       201901122222
 #
@@ -30,6 +37,11 @@
 #  Para buscar linha com url do servidor de video: ytplayer.config.loaded
 #
 
+
+
+
+###########################  INICIO DO SCRIPT #############################
+#
 #
 # Captura o pid do script para construir um arquivo para receber o download 
 # do youtube-dl.
@@ -46,7 +58,8 @@ DIR_SRC=~/.ytmp.d
 FILE_TEMP=/tmp/ytcookie
 
 
-echo -ne "\033]0;Youtube-Mplayer\007"; #Modifica título do terminal.
+# Titulo para o terminal.
+echo -ne "\033]0;Youtube-Mplayer\007";
 
 
 #
@@ -116,7 +129,7 @@ while true; do
 
 	read -e -p 'ytmp> ' COMAND; #Entrada de comandos.
 
-	case $(echo $COMAND | cut -d' ' -f1) in
+	case $(echo $COMAND | cut -d' ' -f1) in  # Case com as opcoes.
 
 		.exit|.quit)
 			[[ -f $FILE_TEMP ]] && rm $FILE_TEMP; #Exclui arquivo temporário.
@@ -467,6 +480,7 @@ while true; do
 	esac
 done
 
-echo -ne "\033]0;Thanks for flying ytmp\007"; #Modifica título do terminal.
+# Modifica título do terminal.
+echo -ne "\033]0;Thanks for flying ytmp\007"; 
 	
 exit
