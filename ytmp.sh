@@ -5,14 +5,14 @@
 #               para reproducao de videos comuns, playlists. Reproduzindo tanto
 #               video ou somente o audio.
 #
-# AUTHOR        Vinicius D Sartori Rimoldi.
+# AUTHOR        Vinicius D Sartori Rimoldi    < viniciusrimoldii@gmail.com >
 #
 # LICENSE       GpL3.
 #
 # CREATED       201901122222
 #
-# MODIFICATION	201901191809	Construção de lista a partir de pesquisas diferentes.
-#		201906262203	Carregamento de buffer antes de iniciar a reprodução.
+# MODIFICATION	201901191809	Construcao de lista a partir de pesquisas diferentes.
+#		201906262203	Carregamento de buffer antes de iniciar a reproducao.
 #		202005041108    Update para Youtube-dl via curl.
 #               202005151744    Add opcao ".favorite" e ".play_fav".
 #               202005170530    Arrumado path com variaveis globais.
@@ -20,12 +20,16 @@
 #                               `- Local do youtube-dl para ~/ytmp.d/ .
 #               202005231503    Add ".msearch" para pesquisa no music.youtube.com.
 #               202006202019    Add ".plsearch" para pesquisa e execucao playlists.
+#               202006221457    Break funcao F_PL_PLAYER com "q" entre os videos da playlist.
+#                               `- Add opcao ".play last" para continuar uma playlist previa.
 
 
 
 # FAZER:
-#	- Carregamento de vídeos de pesquisas diferentes para formar uma sequencia de reprodução.
+#	- Carregamento de videos de pesquisas diferentes para formar uma sequencia de reproducao.
 #       - Ajustar o '.play' para reproduzir o '.msearch'.
+#       - Mplayer interrompe o video segundos antes de terminar toda a duracao do video.
+#       - Continuar ultima playlist de onde estava (precisa salvar o ID da playlist assistida e o numero do ultimo ITEM ouvido).
 #
 
 
@@ -54,6 +58,7 @@ PID_ID=$$;
 #    (OBS: Path de diretorios devem ser adicionados sem "/" no fim do caminho.)
 #
 DIR_FAV=~/.ytmp.d/favorites.d
+DIR_HIST=~/.ytmp.d/history.d
 DIR_SRC=~/.ytmp.d
 FILE_TEMP=/tmp/ytcookie
 
@@ -63,17 +68,17 @@ echo -ne "\033]0;Youtube-Mplayer\007";
 
 
 #
-# Função para executar VÍDEO COMUM com o mplayer e o youtube-dl.
+# Funcao para executar VIDEO COMUM com o mplayer e o youtube-dl.
 #
 F_PLAYER () {
 	# Parametros.
 	FORMAT="$1";
 	URL="$2";
 
-	# Remove o arquivo temporário para que possa assistir outro vídeo.
+	# Remove o arquivo temporario para que possa assistir outro video.
 	[[ -f $FILE_TEMP ]] && rm $FILE_TEMP;
 
-	# Executa vídeo.
+	# Executa video.
 	mplayer -msglevel all=5 \
 		-cache 8192 \
 		-xy 600 \
@@ -89,21 +94,31 @@ F_PLAYER () {
 
 
 #
-# Função para executar PLAYLIST com o mplayer e o youtube-dl.
+# Funcao para executar PLAYLIST com o mplayer e o youtube-dl.
 #
 F_PL_PLAYER () {
 	# Parametros.
 	FORMAT="$1";
 	URL="$2";
 
-	# Remove o arquivo temporário para que possa assistir outro vídeo.
+	# Verifica se foi solicitado para continuar ultima playlist assistida.
+	if [[ $URL == 'last' ]]; then
+		URL=$(< $DIR_HIST/last_id_playlist);
+		ITEM=$(< $DIR_HIST/last_item_playlist);
+	fi
+
+	# Salva ID da ultima playlist assistida (para caso deseje continuar outra hora).
+	echo $URL > $DIR_HIST/last_id_playlist;
+
+	# Remove o arquivo temporario para que possa assistir outro video.
 	[[ -f $FILE_TEMP ]] && rm $FILE_TEMP;
 
 	# Loop para executar a playlist toda.
 	while true; do
-		ITEM=$((${ITEM:-0} + 1));
+		ITEM=$((${ITEM:-0} + 1));  # Item que sera executado.
+		echo $ITEM > $DIR_HIST/last_item_playlist;  # Salva ultimo item assistido.
 
-		# Executa vídeo.
+		# Executa video e interrompe caso nao exista o item selecionado.
 		mplayer -msglevel all=5 \
 			-cache 8192 \
 			-xy 600 \
@@ -114,25 +129,30 @@ F_PL_PLAYER () {
 				-g \
 				--cookies=$FILE_TEMP \
 				--playlist-items $ITEM \
-				-i $URL ) || break;
+				-i $URL || break );
+
+		# Interrompe execucao sequencial da playlist com "qq" (primeiro 
+		#  para interromper o mplayer e o segundo para sair do loop de execucao).
+		read -t 1 -n 1 -s BREAK_NOW;
+		[[ $BREAK_NOW == 'q' ]] && break;
 	done
 }
 
 
 
 #
-# While com as opções.
+# While com as opcoes.
 #
 while true; do
 
-	echo -ne "\033]0;ytmp\007"; #Modifica título do terminal.
+	echo -ne "\033]0;ytmp\007"; #Modifica titulo do terminal.
 
 	read -e -p 'ytmp> ' COMAND; #Entrada de comandos.
 
 	case $(echo $COMAND | cut -d' ' -f1) in  # Case com as opcoes.
 
 		.exit|.quit)
-			[[ -f $FILE_TEMP ]] && rm $FILE_TEMP; #Exclui arquivo temporário.
+			[[ -f $FILE_TEMP ]] && rm $FILE_TEMP; #Exclui arquivo temporario.
 			break;
 			;; #Fim do .exit
 
@@ -154,7 +174,7 @@ while true; do
 
 
 		.info)
-			# Informações sobre um vídeo.
+			# Informacoes sobre um video.
 
 			INFO_SELECTED=${COMAND##.info };
 
@@ -209,12 +229,12 @@ while true; do
 		.list)
 			# Monta uma playlist.
 
-			# Seleciona os números das listas.
-			WATCH_CHOICE=${COMAND##.list}; # Variável com o número dos vídeos passados.
+			# Seleciona os numeros das listas.
+			WATCH_CHOICE=${COMAND##.list}; # Variavel com o numero dos videos passados.
 
 
 			#
-			# Loop capturando as urls dos vídeos.
+			# Loop capturando as urls dos videos.
 			#
 			for WATCH_SELECTED in $WATCH_CHOICE; do
 				SELECTED_URL=$(echo -e "$SOURCE_SEARCH" | cut -d'"' -f1 | sed -n ${WATCH_SELECTED}p);
@@ -236,30 +256,34 @@ while true; do
 
 
 		.play)
-			# Reproduz o vídeo escolhido.
+			# Reproduz o video escolhido.
 
-			echo -ne "\033]0;Ytmp - Play\007"; # Modifica título do terminal.
+			echo -ne "\033]0;Ytmp - Play\007"; # Modifica titulo do terminal.
 
-			WATCH_CHOICE=${COMAND##.play }; # Variável com o número dos vídeos passados.
+			WATCH_CHOICE=${COMAND##.play }; # Variavel com o numero dos videos passados.
 
-			if [[ "$WATCH_CHOICE" = "list" ]]; then
-				# Executa lista de vídeos de diferentes pesquisas.
+			if [[ "$WATCH_CHOICE" == "list" ]]; then
+				# Executa lista de videos de diferentes pesquisas.
 			       for WATCH_SELECTED in $WATCH_LIST; do
 				       F_PLAYER "$FORMAT_WATCH" "$WATCH_SELECTED";
 			       done
 
-		       else # Executa música isoladas de uma mesma pesquisa.
+		       elif [[ "$WATCH_CHOICE" == "last" ]]; then
+			       # Continua ultima playlist assistida.
+				F_PL_PLAYER "$FORMAT_WATCH" 'last';
+
+		       else # Executa musica isoladas de uma mesma pesquisa.
 
 				#
-				# Loop com os vídeos selecionados.
+				# Loop com os videos selecionados.
 				#
 				for WATCH_SELECTED in $WATCH_CHOICE; do
-					SELECTED_URL=$(echo -e "$SOURCE_SEARCH" | cut -d'"' -f1 | sed -n ${WATCH_SELECTED}p);
+					SELECTED_URL=$(echo -e "$SOURCE_SEARCH" | cut -d'"' -f1 | cut -d'=' -f2 | sed -n ${WATCH_SELECTED}p);
 
 					if [[ $CALL_BY = '1' ]]; then # Chamado pela pesquisa video comum.
 						#URL_WATCH=$(echo 'https://www.youtube.com'"$SELECTED_URL");
 
-						# Chama função para executar vídeo.
+						# Chama funcao para executar video.
 						#F_PLAYER "$FORMAT_WATCH" "$URL_WATCH";
 						F_PLAYER "$FORMAT_WATCH" "$SELECTED_URL";
 					fi
@@ -268,8 +292,8 @@ while true; do
 						F_PL_PLAYER "$FORMAT_WATCH" "$SELECTED_URL";
 					fi
 
-				done #Fim do loop que executa os vídeos selecionados.
-			fi #Fim do if que seleciona lista ou música isolada.
+				done #Fim do loop que executa os videos selecionados.
+			fi #Fim do if que seleciona lista ou musica isolada.
 
 			;; #Fim do .play
 
@@ -288,7 +312,7 @@ while true; do
 			read -e FAV_CHOICE;
 
 
-			echo -ne "\033]0;Ytmp - Play\007"; # Modifica título do terminal.
+			echo -ne "\033]0;Ytmp - Play\007"; # Modifica titulo do terminal.
 
 
 			#
@@ -298,10 +322,10 @@ while true; do
 				SELECTED_FAV=$(echo -e "$FAV_FILES" | cut -f2 | sed -n ${WATCH_SELECTED}p);
 				URL_WATCH_FAV=$(cat $DIR_FAV/$SELECTED_FAV);
 
-				# Chama função para executar vídeo.
+				# Chama função para executar video.
 				F_PLAYER "$FORMAT_WATCH" "$URL_WATCH_FAV";
 
-			done #Fim do loop que executa os vídeos selecionados.
+			done #Fim do loop que executa os videos selecionados.
 
 			;; #Fim do .fav_play
 
@@ -309,12 +333,12 @@ while true; do
 		.repeat_search)
 			# Repete a pesquisa anterior.
 
-			echo -e "$SOURCE_SEARCH" | cut -d'"' -f2 | cat -n; # Mostra os títulos do resultado para o usuário.
+			echo -e "$SOURCE_SEARCH" | cut -d'"' -f2 | cat -n; # Mostra os titulos do resultado para o usuario.
 
 			;; #Fim do .reply
 
 		.search)
-			# Pesquisa comum de vídeos.
+			# Pesquisa comum de videos.
 
 			SEARCH=${COMAND##*.search }; # Captura os termos da pesquisa.
 			while true; do   # Loop ate encontrar resultado.
@@ -323,10 +347,10 @@ while true; do
 					| sed "s/>/>\n/g" \
 					| grep '<a href="/watch?' \
 					| cut -d'"' -f2,8 \
-					| iconv -c -f UTF-8 -t ISO-8859-1); # Captura os resultados da pesquisa (link"título).
+					| iconv -c -f UTF-8 -t ISO-8859-1); # Captura os resultados da pesquisa (link"titulo).
 
 				if [[ ! -z $SOURCE_SEARCH ]]; then
-					echo -e "$SOURCE_SEARCH" | cut -d'"' -f2 | cat -n; # Mostra os títulos do resultado para o usuário.
+					echo -e "$SOURCE_SEARCH" | cut -d'"' -f2 | cat -n; # Mostra os títulos do resultado para o usuario.
 					break;
 				fi
 			done
@@ -343,10 +367,10 @@ while true; do
 					| sed "s/:{\"playlistId\"/\n_AQUI_/g" \
 					| grep "^_AQUI_" \
 					| cut -d'"' -f2,8 \
-					| iconv -c -f UTF-8 -t ISO-8859-1); # Captura os resultados da pesquisa (link"título).
+					| iconv -c -f UTF-8 -t ISO-8859-1); # Captura os resultados da pesquisa (link"titulo).
 
 				if [[ ! -z $SOURCE_SEARCH ]]; then
-					echo -e "$SOURCE_SEARCH" | cut -d'"' -f2 | cat -n; # Mostra os títulos do resultado para o usuário.
+					echo -e "$SOURCE_SEARCH" | cut -d'"' -f2 | cat -n; # Mostra os títulos do resultado para o usuario.
 					break;
 				fi
 			done
@@ -453,7 +477,7 @@ while true; do
 			URL_ALBUM=$(cat $FILE_SEARCH_TEMP | sed -n ${CHOICE_ALBUM}p | cut -d'#' -f2-); 
 
 
-			# Chama função para executar o album.
+			# Chama funcao para executar o album.
 			F_PLAYER "$FORMAT_WATCH" "${URL_BEGIN_YOUTUBE}${URL_ALBUM}";
 
 			;; #Fim do .msearch
@@ -480,7 +504,7 @@ while true; do
 	esac
 done
 
-# Modifica título do terminal.
+# Modifica titulo do terminal.
 echo -ne "\033]0;Thanks for flying ytmp\007"; 
 	
 exit
