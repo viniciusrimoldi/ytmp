@@ -501,27 +501,65 @@ while true; do
 			if [[ $(type -a youtube-dl > /dev/null 2>&1; echo $?) -eq 1 ]]; then  # Verifica Youtube-DL.
 				echo 'ERROR: Youtube-DL not installed!';
 				exit 1;
-			else
-				# Checa versao do projeto no github.
-				VERSION_GIT=$(curl -# -L 'https://raw.githubusercontent.com/viniciusrimoldi/ytmp/master/version');
-				VERSION_USER=$(< $DIR_SRC/version);
-				if [[ $VERSION_GIT > $VERSION_USER ]]; then
-					curl -# -L 'https://raw.githubusercontent.com/viniciusrimoldi/ytmp/master/ytmp.sh' \
-						-o $DIR_SRC/ytmp.sh \
-						&& chmod 0755 $DIR_SRC/ytmp.sh \
-					        && echo $VERSION_GIT > $DIR_SRC/version` \
-						&& echo 'Ytmp.sh updated!';
-				else
-					echo 'Ytmp.sh updated!';
-				fi
-
-				# Atualiza Youtube-DL.
-				curl -# -L https://yt-dl.org/downloads/latest/youtube-dl \
-					-o $DIR_SRC/youtube-dl \
-					&& echo 'Youtube-DL updated !';
-
-				chmod 0755 $DIR_SRC/youtube-dl; # Da permissao de execucao ao arquivo.
 			fi
+
+
+			# Atualiza ytmp.sh (checa versao do projeto no github).
+			VERSION_GIT=$(curl -s -L 'https://raw.githubusercontent.com/viniciusrimoldi/ytmp/master/version');
+			VERSION_USER=$(< $DIR_SRC/version);
+			echo; echo '>>> *** STARTING UPDATE ***';
+			sleep 1;
+			echo '>>>';
+			echo '>>> RUN: Checking ytmp.sh';
+			if [[ $VERSION_GIT > $VERSION_USER ]]; then
+				echo '>>> RUN: Downloading ytmp.sh ...';
+				curl -# -L 'https://raw.githubusercontent.com/viniciusrimoldi/ytmp/master/ytmp.sh' \
+					-o $DIR_SRC/ytmp.sh \
+					&& chmod 0755 $DIR_SRC/ytmp.sh \
+					&& echo $VERSION_GIT > $DIR_SRC/version \
+					&& echo '>>> SUCCESS: Ytmp.sh updated!';
+			else
+				echo '>>> SUCCESS: Ytmp.sh updated!';
+			fi
+
+			# Atualiza Youtube-DL.
+			sleep 1;
+			echo '>>>';
+			echo '>>> RUN: Checking Youtube-DL';
+			echo '>>> RUN: Downloading Youtube-DL ...';
+			curl -# -L 'https://yt-dl.org/downloads/latest/youtube-dl' \
+				-o $DIR_SRC/youtube-dl > /dev/null 2>&1 \
+				|| ERRO_SSL_YTDL=1;
+
+			# Erro no certificado SSL do curl (oferece a opcao para baixar via curl inseguro [sem ssl]).
+			if [[ $ERRO_SSL_YTDL = 1 ]]; then
+				echo '>>> ERROR: Curl SSL Certificate has expired!';
+				echo;
+				echo '        You can download with >> $ curl --insecure <<';
+				echo '        OR update your >> $ curl <<.';
+				echo;
+				read -s -n 1 -p '>>> CHOICE: Want use >> $ curl --insecure << ?  (y/n)' CHOICE_CURL_INS;
+
+				if [[ ${CHOICE_CURL_INS^} == 'Y' ]]; then
+					echo; echo '>>> RUN: Downloading Youtube-DL (with $ curl --insecure) ...';
+					curl -# -L --insecure 'https://yt-dl.org/downloads/latest/youtube-dl' \
+					-o $DIR_SRC/youtube-dl > /dev/null 2>&1 \
+					&& echo '>>> SUCCESS: Youtube-DL updated!' \
+					&& echo '>>>' \
+					&& echo '>>> UPDATE COMPLETED!';
+				else
+					echo;
+					echo '>>> ERROR: Youtube-DL NOT updated!';
+					echo '>>> UPDATE FAILED!!!';
+				fi
+			else
+				echo '>>> SUCCESS: Youtube-DL updated!';
+				echo '>>>';
+				echo '>>> UPDATE COMPLETED!';
+				echo;
+			fi
+
+			[[ -f $DIR_SRC/youtube-dl ]] && chmod 0755 $DIR_SRC/youtube-dl; # Da permissao de execucao ao arquivo.
 
 			;; #Fim do .uptade
 			
