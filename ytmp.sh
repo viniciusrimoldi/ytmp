@@ -5,7 +5,7 @@
 #               para reproducao de videos comuns, playlists. Reproduzindo tanto
 #               video ou somente o audio.
 #
-# AUTHOR        Vinicius D Sartori Rimoldi    < viniciusrimoldii@gmail.com >
+# AUTHOR        Vinicius D Sartori Rimoldi    <viniciusrimoldii@gmail.com>
 #
 # LICENSE       GpL3.
 #
@@ -22,6 +22,8 @@
 #               202006202019    Add ".plsearch" para pesquisa e execucao playlists.
 #               202006221457    Break funcao F_PL_PLAYER com "q" entre os videos da playlist.
 #                               `- Add opcao ".play last" para continuar uma playlist previa.
+#               202006231211    Criado arquivo "install_ytmp.sh" separado desse arquivo.
+#                               `- Aprimorado ".update" com checagem de versao do script no GitHub.
 
 
 
@@ -29,7 +31,6 @@
 #	- Carregamento de videos de pesquisas diferentes para formar uma sequencia de reproducao.
 #       - Ajustar o '.play' para reproduzir o '.msearch'.
 #       - Mplayer interrompe o video segundos antes de terminar toda a duracao do video.
-#       - Continuar ultima playlist de onde estava (precisa salvar o ID da playlist assistida e o numero do ultimo ITEM ouvido).
 #
 
 
@@ -216,7 +217,8 @@ while true; do
 			echo '.help                         Show this message';
 			echo '.list                         Mounts a play list';
 			echo '.mode audio|video             Set output mode';
-			echo '.play [number-video|list]     Play the video';
+			echo '.play [number-video           Play the video';
+			echo '      |list|last]';
 			echo '.quit                         Exit this programm';
 			echo '.repeat_search                Repeat previous search';
 			echo '.search                       Search video';
@@ -482,20 +484,46 @@ while true; do
 
 			;; #Fim do .msearch
 
+		.update)
+			# Uptade YTMP (Youtube-dl + script ytmp.sh from github).
 
-		.install|.update)
-			# Install/Update do Youtube-dl.
-
-			if [[ $(bash-4.3$ type -a python > /dev/null 2>&1; echo $?) -eq 1 ]]; then  # Verifica se o usuario tem o python instalado.
+			# Verifica os programas instalados (dependencias do script) e atualizacoes no GitHub.
+			if [[ $(type -a python > /dev/null 2>&1; echo $?) -eq 1 ]]; then  # Verifica Python.
 				echo 'ERROR: Python not installed!';
 				exit 1;
 			fi
 
-			curl -# -L https://yt-dl.org/downloads/latest/youtube-dl -o $DIR_SRC/youtube-dl;  # Baixa para o diretorio do ytmp.
-			
-			chmod 0755 $DIR_SRC/youtube-dl; # Da permissao de execucao ao arquivo.
+			if [[ $(type -a mplayer > /dev/null 2>&1; echo $?) -eq 1 ]]; then  # Verifica Mplayer.
+				echo 'ERROR: Mplayer not installed!';
+				exit 1;
+			fi
 
-			;; #Fim do .update
+			if [[ $(type -a youtube-dl > /dev/null 2>&1; echo $?) -eq 1 ]]; then  # Verifica Youtube-DL.
+				echo 'ERROR: Youtube-DL not installed!';
+				exit 1;
+			else
+				# Checa versao do projeto no github.
+				VERSION_GIT=$(curl -# -L 'https://raw.githubusercontent.com/viniciusrimoldi/ytmp/master/version');
+				VERSION_USER=$(< $DIR_SRC/version);
+				if [[ $VERSION_GIT > $VERSION_USER ]]; then
+					curl -# -L 'https://raw.githubusercontent.com/viniciusrimoldi/ytmp/master/ytmp.sh' \
+						-o $DIR_SRC/ytmp.sh \
+						&& chmod 0755 $DIR_SRC/ytmp.sh \
+					        && echo $VERSION_GIT > $DIR_SRC/version` \
+						&& echo 'Ytmp.sh updated!';
+				else
+					echo 'Ytmp.sh updated!';
+				fi
+
+				# Atualiza Youtube-DL.
+				curl -# -L https://yt-dl.org/downloads/latest/youtube-dl \
+					-o $DIR_SRC/youtube-dl \
+					&& echo 'Youtube-DL updated !';
+
+				chmod 0755 $DIR_SRC/youtube-dl; # Da permissao de execucao ao arquivo.
+			fi
+
+			;; #Fim do .uptade
 			
 		*)
 			echo 'Error: command not found';
