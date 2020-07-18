@@ -53,5 +53,4 @@ GpL-v3
 Favor enviar bugs ou sugestões para o email do mantenedor (<viniciusrimoldii@gmail.com>).
 
 
-# OBS:
-O mantenedor não se responsabiliza pelo uso indevido do script com fins de download de vídeos propretários do _youtube.com_ ou _music.youtube.com_. Sendo responsabilidade de uso consciente do próprio usuário.
+___OBS:__ O mantenedor não se responsabiliza pelo uso indevido do script com fins de download de vídeos propretários do _youtube.com_ ou _music.youtube.com_. _Sendo responsabilidade de uso consciente do próprio usuário._
